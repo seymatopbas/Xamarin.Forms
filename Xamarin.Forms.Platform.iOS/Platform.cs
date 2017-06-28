@@ -63,7 +63,8 @@ namespace Xamarin.Forms.Platform.iOS
 			});
 		}
 
-		internal UIViewController ViewController
+		//internal 
+		public UIViewController ViewController
 		{
 			get { return _renderer; }
 		}

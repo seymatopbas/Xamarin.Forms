@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Threading;
 using Xamarin.Forms.Internals;
 using UIKit;
 using PageUIStatusBarAnimation = Xamarin.Forms.PlatformConfiguration.iOSSpecific.UIStatusBarAnimation;
@@ -10,7 +12,9 @@ namespace Xamarin.Forms.Platform.iOS
 {
 	public class PageRenderer : UIViewController, IVisualElementRenderer, IEffectControlProvider
 	{
-		bool _appeared;
+		static int s_count;
+
+	//	bool _appeared;
 		bool _disposed;
 		EventTracker _events;
 		VisualElementPackager _packager;
@@ -20,11 +24,19 @@ namespace Xamarin.Forms.Platform.iOS
 
 		public PageRenderer()
 		{
+			Interlocked.Increment(ref s_count);
+			Log.Warning("41269 Renderer", $"_41269 renderer instance count is: {s_count}");
+		}
+
+		~PageRenderer()
+		{
+			Interlocked.Decrement(ref s_count);
+			Log.Warning("41269 Renderer", $"_41269 renderer instance count is: {s_count}");
 		}
 
 		void IEffectControlProvider.RegisterEffect(Effect effect)
 		{
-			VisualElementRenderer<VisualElement>.RegisterEffect(effect, View);
+			//VisualElementRenderer<VisualElement>.RegisterEffect(effect, View);
 		}
 
 		public VisualElement Element { get; private set; }
@@ -49,13 +61,13 @@ namespace Xamarin.Forms.Platform.iOS
 
 			OnElementChanged(new VisualElementChangedEventArgs(oldElement, element));
 
-			if (Element != null && !string.IsNullOrEmpty(Element.AutomationId))
-				SetAutomationId(Element.AutomationId);
+			//if (Element != null && !string.IsNullOrEmpty(Element.AutomationId))
+			//	SetAutomationId(Element.AutomationId);
 
-			if (element != null)
-				element.SendViewInitialized(NativeView);
+			//if (element != null)
+			//	element.SendViewInitialized(NativeView);
 
-			EffectUtilities.RegisterEffectControlProvider(this, oldElement, element);
+			//EffectUtilities.RegisterEffectControlProvider(this, oldElement, element);
 		}
 
 		public void SetElementSize(Size size)
@@ -65,72 +77,73 @@ namespace Xamarin.Forms.Platform.iOS
 
 		public UIViewController ViewController => _disposed ? null : this;
 
-		public override void ViewDidAppear(bool animated)
-		{
-			base.ViewDidAppear(animated);
+		//public override void ViewDidAppear(bool animated)
+		//{
+		//	base.ViewDidAppear(animated);
 
-			if (_appeared || _disposed)
-				return;
+		//	if (_appeared || _disposed)
+		//		return;
 
-			_appeared = true;
-			Page.SendAppearing();
-			UpdateStatusBarPrefersHidden();
-		}
+		//	_appeared = true;
+		//	Page.SendAppearing();
+		//	UpdateStatusBarPrefersHidden();
+		//}
 
-		public override void ViewDidDisappear(bool animated)
-		{
-			base.ViewDidDisappear(animated);
+		//public override void ViewDidDisappear(bool animated)
+		//{
+		//	base.ViewDidDisappear(animated);
 
-			if (!_appeared || _disposed)
-				return;
+		//	if (!_appeared || _disposed)
+		//		return;
 
-			_appeared = false;
-			Page.SendDisappearing();
-		}
+		//	_appeared = false;
+		//	Page.SendDisappearing();
+		//}
 
 		public override void ViewDidLoad()
 		{
 			base.ViewDidLoad();
 
-			var uiTapGestureRecognizer = new UITapGestureRecognizer(a => View.EndEditing(true));
+			//var uiTapGestureRecognizer = new UITapGestureRecognizer(a => View.EndEditing(true));
 
-			uiTapGestureRecognizer.ShouldRecognizeSimultaneously = (recognizer, gestureRecognizer) => true;
-			uiTapGestureRecognizer.ShouldReceiveTouch = OnShouldReceiveTouch;
-			uiTapGestureRecognizer.DelaysTouchesBegan =
-				uiTapGestureRecognizer.DelaysTouchesEnded = uiTapGestureRecognizer.CancelsTouchesInView = false;
-			View.AddGestureRecognizer(uiTapGestureRecognizer);
+			//uiTapGestureRecognizer.ShouldRecognizeSimultaneously = (recognizer, gestureRecognizer) => true;
+			//uiTapGestureRecognizer.ShouldReceiveTouch = OnShouldReceiveTouch;
+			//uiTapGestureRecognizer.DelaysTouchesBegan =
+			//	uiTapGestureRecognizer.DelaysTouchesEnded = uiTapGestureRecognizer.CancelsTouchesInView = false;
+			//View.AddGestureRecognizer(uiTapGestureRecognizer);
 
-			UpdateBackground();
+			//UpdateBackground();
 
 			_packager = new VisualElementPackager(this);
 			_packager.Load();
 
-			Element.PropertyChanged += OnHandlePropertyChanged;
+			//Element.PropertyChanged += OnHandlePropertyChanged;
 			_tracker = new VisualElementTracker(this);
 
-			_events = new EventTracker(this);
-			_events.LoadEvents(View);
+			//_events = new EventTracker(this);
+			//_events.LoadEvents(View);
 
-			Element.SendViewInitialized(View);
+			//Element.SendViewInitialized(View);
 		}
 
-		public override void ViewWillDisappear(bool animated)
-		{
-			base.ViewWillDisappear(animated);
+		//public override void ViewWillDisappear(bool animated)
+		//{
+		//	base.ViewWillDisappear(animated);
 
-			View.Window?.EndEditing(true);
-		}
+		//	View.Window?.EndEditing(true);
+		//}
 
 		protected override void Dispose(bool disposing)
 		{
 			if (disposing && !_disposed)
 			{
+				Debug.WriteLine($">>>>> PageRenderer Dispose 127: PageRenderer Dispose is being called");
 				Element.PropertyChanged -= OnHandlePropertyChanged;
-				Platform.SetRenderer(Element, null);
-				if (_appeared)
-					Page.SendDisappearing();
+				//Platform.SetRenderer(Element, null);
+				//if (_appeared)
+				//	Page.SendDisappearing();
 
-				_appeared = false;
+			//	_appeared = false;
 
 				if (_events != null)
 				{
@@ -164,91 +177,95 @@ namespace Xamarin.Forms.Platform.iOS
 
 		protected virtual void SetAutomationId(string id)
 		{
-			if (NativeView != null)
-				NativeView.AccessibilityIdentifier = id;
+			//if (NativeView != null)
+			//	NativeView.AccessibilityIdentifier = id;
 		}
 
 		void OnHandlePropertyChanged(object sender, PropertyChangedEventArgs e)
 		{
-			if (e.PropertyName == VisualElement.BackgroundColorProperty.PropertyName)
-				UpdateBackground();
-			else if (e.PropertyName == Page.BackgroundImageProperty.PropertyName)
-				UpdateBackground();
-			else if (e.PropertyName == Page.TitleProperty.PropertyName)
-				UpdateTitle();
-			else if (e.PropertyName == PlatformConfiguration.iOSSpecific.Page.PrefersStatusBarHiddenProperty.PropertyName)
-				UpdateStatusBarPrefersHidden();
+			//if (e.PropertyName == VisualElement.BackgroundColorProperty.PropertyName)
+			//	UpdateBackground();
+			//else if (e.PropertyName == Page.BackgroundImageProperty.PropertyName)
+			//	UpdateBackground();
+			//else if (e.PropertyName == Page.TitleProperty.PropertyName)
+			//	UpdateTitle();
+			//else if (e.PropertyName == PlatformConfiguration.iOSSpecific.Page.PrefersStatusBarHiddenProperty.PropertyName)
+			//	UpdateStatusBarPrefersHidden();
 		}
 
 		public override UIKit.UIStatusBarAnimation PreferredStatusBarUpdateAnimation
 		{
 			get
 			{
-				var animation = ((Page)Element).OnThisPlatform().PreferredStatusBarUpdateAnimation();
-				switch (animation)
-				{
-					case (PageUIStatusBarAnimation.Fade):
-						return UIKit.UIStatusBarAnimation.Fade;
-					case (PageUIStatusBarAnimation.Slide):
-						return UIKit.UIStatusBarAnimation.Slide;
-					case (PageUIStatusBarAnimation.None):
-					default:
-						return UIKit.UIStatusBarAnimation.None;
-				}
+				//var animation = ((Page)Element).OnThisPlatform().PreferredStatusBarUpdateAnimation();
+				//switch (animation)
+				//{
+				//	case (PageUIStatusBarAnimation.Fade):
+				//		return UIKit.UIStatusBarAnimation.Fade;
+				//	case (PageUIStatusBarAnimation.Slide):
+				//		return UIKit.UIStatusBarAnimation.Slide;
+				//	case (PageUIStatusBarAnimation.None):
+				//	default:
+				//		return UIKit.UIStatusBarAnimation.None;
+				//}
+
+				return UIKit.UIStatusBarAnimation.None;
 			}
 		}
 
 		void UpdateStatusBarPrefersHidden()
 		{
-			if (Element == null)
-				return;
+			//if (Element == null)
+			//	return;
 
-			var animation = ((Page)Element).OnThisPlatform().PreferredStatusBarUpdateAnimation();
-			if (animation == PageUIStatusBarAnimation.Fade || animation == PageUIStatusBarAnimation.Slide)
-				UIView.Animate(0.25, () => SetNeedsStatusBarAppearanceUpdate());
-			else
-				SetNeedsStatusBarAppearanceUpdate();
-			View.SetNeedsLayout();
+			//var animation = ((Page)Element).OnThisPlatform().PreferredStatusBarUpdateAnimation();
+			//if (animation == PageUIStatusBarAnimation.Fade || animation == PageUIStatusBarAnimation.Slide)
+			//	UIView.Animate(0.25, () => SetNeedsStatusBarAppearanceUpdate());
+			//else
+			//	SetNeedsStatusBarAppearanceUpdate();
+			//View.SetNeedsLayout();
 		}
 
 		bool OnShouldReceiveTouch(UIGestureRecognizer recognizer, UITouch touch)
 		{
-			foreach (UIView v in ViewAndSuperviewsOfView(touch.View))
-			{
-				if (v is UITableView || v is UITableViewCell || v.CanBecomeFirstResponder)
-					return false;
-			}
+			//foreach (UIView v in ViewAndSuperviewsOfView(touch.View))
+			//{
+			//	if (v is UITableView || v is UITableViewCell || v.CanBecomeFirstResponder)
+			//		return false;
+			//}
 			return true;
 		}
 
 		public override bool PrefersStatusBarHidden()
 		{
-			var mode = ((Page)Element).OnThisPlatform().PrefersStatusBarHidden();
-			switch (mode)
-			{
-				case (StatusBarHiddenMode.True):
-					return true;
-				case (StatusBarHiddenMode.False):
-					return false;
-				case (StatusBarHiddenMode.Default):
-				default:
-					return base.PrefersStatusBarHidden();
-			}
+			return false;
+
+			//var mode = ((Page)Element).OnThisPlatform().PrefersStatusBarHidden();
+			//switch (mode)
+			//{
+			//	case (StatusBarHiddenMode.True):
+			//		return true;
+			//	case (StatusBarHiddenMode.False):
+			//		return false;
+			//	case (StatusBarHiddenMode.Default):
+			//	default:
+			//		return base.PrefersStatusBarHidden();
+			//}
 		}
 
 		void UpdateBackground()
 		{
-			string bgImage = ((Page)Element).BackgroundImage;
-			if (!string.IsNullOrEmpty(bgImage))
-			{
-				View.BackgroundColor = UIColor.FromPatternImage(UIImage.FromBundle(bgImage));
-				return;
-			}
-			Color bgColor = Element.BackgroundColor;
-			if (bgColor.IsDefault)
-				View.BackgroundColor = UIColor.White;
-			else
-				View.BackgroundColor = bgColor.ToUIColor();
+			//string bgImage = ((Page)Element).BackgroundImage;
+			//if (!string.IsNullOrEmpty(bgImage))
+			//{
+			//	View.BackgroundColor = UIColor.FromPatternImage(UIImage.FromBundle(bgImage));
+			//	return;
+			//}
+			//Color bgColor = Element.BackgroundColor;
+			//if (bgColor.IsDefault)
+			//	View.BackgroundColor = UIColor.White;
+			//else
+			//	View.BackgroundColor = bgColor.ToUIColor();
 		}
 
 		void UpdateTitle()
@@ -257,13 +274,13 @@ namespace Xamarin.Forms.Platform.iOS
 				Title = ((Page)Element).Title;
 		}
 
-		IEnumerable<UIView> ViewAndSuperviewsOfView(UIView view)
-		{
-			while (view != null)
-			{
-				yield return view;
-				view = view.Superview;
-			}
-		}
+		//IEnumerable<UIView> ViewAndSuperviewsOfView(UIView view)
+		//{
+		//	while (view != null)
+		//	{
+		//		yield return view;
+		//		view = view.Superview;
+		//	}
+		//}
 	}
 }

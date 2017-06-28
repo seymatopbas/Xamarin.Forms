@@ -1,4 +1,6 @@
 using System;
+using System.Diagnostics;
+using System.Threading;
 
 #if __MOBILE__
 namespace Xamarin.Forms.Platform.iOS
@@ -9,6 +11,14 @@ namespace Xamarin.Forms.Platform.MacOS
 {
 	public class VisualElementPackager : IDisposable
 	{
+		static int s_count;
+
+		~VisualElementPackager()
+		{
+			Interlocked.Decrement(ref s_count);
+			Debug.WriteLine($">>>>> VisualElementPackager instance count: {s_count}");
+		}
+
 		VisualElement _element;
 
 		bool _isDisposed;
@@ -23,6 +33,9 @@ namespace Xamarin.Forms.Platform.MacOS
 			Renderer = renderer;
 			renderer.ElementChanged += OnRendererElementChanged;
 			SetElement(null, renderer.Element);
+
+			Interlocked.Increment(ref s_count);
+			Debug.WriteLine($">>>>> VisualElementPackager instance count: {s_count}");
 		}
 
 		protected IVisualElementRenderer Renderer { get; set; }

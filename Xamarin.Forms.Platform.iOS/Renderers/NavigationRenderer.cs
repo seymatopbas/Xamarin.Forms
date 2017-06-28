@@ -2,7 +2,9 @@ using CoreGraphics;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using UIKit;
 using Xamarin.Forms.Internals;
@@ -110,8 +112,10 @@ namespace Xamarin.Forms.Platform.iOS
 
 		public override UIViewController PopViewController(bool animated)
 		{
-			RemoveViewControllers(animated);
-			return base.PopViewController(animated);
+			//RemoveViewControllers(animated);
+			//return base.PopViewController(animated);
+			RemoveViewControllers(false);
+			return base.PopViewController(false);
 		}
 
 		public Task<bool> PushPageAsync(Page page, bool animated = true)
@@ -298,7 +302,8 @@ namespace Xamarin.Forms.Platform.iOS
 			var task = GetAppearedOrDisappearedTask(page);
 
 			UIViewController poppedViewController;
-			poppedViewController = base.PopViewController(animated);
+			//poppedViewController = base.PopViewController(animated);
+			poppedViewController = base.PopViewController(false);
 
 			if (poppedViewController == null)
 			{
@@ -317,20 +322,25 @@ namespace Xamarin.Forms.Platform.iOS
 			return actuallyRemoved;
 		}
 
-		protected virtual async Task<bool> OnPushAsync(Page page, bool animated)
+		protected virtual 
+			//async 
+			Task<bool> OnPushAsync(Page page, bool animated)
 		{
 			if(page is MasterDetailPage)
 				System.Diagnostics.Trace.WriteLine($"Pushing a {nameof(MasterDetailPage)} onto a {nameof(NavigationPage)} is not a supported UI pattern on iOS. " +
 					"Please see https://developer.apple.com/documentation/uikit/uisplitviewcontroller for more details.");
 
 			var pack = CreateViewControllerForPage(page);
-			var task = GetAppearedOrDisappearedTask(page);
+			//var task = GetAppearedOrDisappearedTask(page);
 
-			PushViewController(pack, animated);
+			//PushViewController(pack, animated);
+			PushViewController(pack, false);
 
-			var shown = await task;
-			UpdateToolBarVisible();
-			return shown;
+			//var shown = await task;
+			//UpdateToolBarVisible();
+			//return shown;
+
+			return Task.FromResult(true);
 		}
 
 		ParentingViewController CreateViewControllerForPage(Page page)
@@ -345,7 +355,7 @@ namespace Xamarin.Forms.Platform.iOS
 				pack.NavigationItem.Title = page.Title;
 
 			// First page and we have a master detail to contend with
-			UpdateLeftBarButtonItem(pack);
+			//UpdateLeftBarButtonItem(pack);
 
 			//var pack = Platform.GetRenderer (view).ViewController;
 
@@ -369,9 +379,12 @@ namespace Xamarin.Forms.Platform.iOS
 			}
 
 			var pageRenderer = Platform.GetRenderer(page);
+
+			// TODO hartez 2017/06/28 11:02:36 Just note that every example we can find has them in this order	
+
+			//pack.AddChildViewController(pageRenderer.ViewController);
 			pack.View.AddSubview(pageRenderer.ViewController.View);
-			pack.AddChildViewController(pageRenderer.ViewController);
-			pageRenderer.ViewController.DidMoveToParentViewController(pack);
+			//pageRenderer.ViewController.DidMoveToParentViewController(pack);
 
 			return pack;
 		}
@@ -526,7 +539,7 @@ namespace Xamarin.Forms.Platform.iOS
 			UpdateLeftBarButtonItem(parentingViewController, page);
 		}
 
-		void RemoveViewControllers(bool animated)
+		async void RemoveViewControllers(bool animated)
 		{
 			var controller = TopViewController as ParentingViewController;
 			if (controller == null || controller.Child == null || Platform.GetRenderer(controller.Child) == null)
@@ -534,26 +547,28 @@ namespace Xamarin.Forms.Platform.iOS
 
 			// Gesture in progress, lets not be proactive and just wait for it to finish
 			var count = ViewControllers.Length;
-			var task = GetAppearedOrDisappearedTask(controller.Child);
-			task.ContinueWith(async t =>
-			{
-				// task returns true if the user lets go of the page and is not popped
-				// however at this point the renderer is already off the visual stack so we just need to update the NavigationPage
-				// Also worth noting this task returns on the main thread
-				if (t.Result)
-					return;
-				_ignorePopCall = true;
-				// because iOS will just chain multiple animations together...
-				var removed = count - ViewControllers.Length;
-				for (var i = 0; i < removed; i++)
-				{
-					// lets just pop these suckers off, do not await, the true is there to make this fast
-					await ((NavigationPage)Element).PopAsyncInner(animated, true);
-				}
-				// because we skip the normal pop process we need to dispose ourselves
-				controller.Dispose();
-				_ignorePopCall = false;
-			}, TaskScheduler.FromCurrentSynchronizationContext());
+			//var task = GetAppearedOrDisappearedTask(controller.Child);
+			//task.ContinueWith(async t =>
+			//{
+			//	// task returns true if the user lets go of the page and is not popped
+			//	// however at this point the renderer is already off the visual stack so we just need to update the NavigationPage
+			//	// Also worth noting this task returns on the main thread
+			//	if (t.Result)
+			//		return;
+			//	_ignorePopCall = true;
+			//	// because iOS will just chain multiple animations together...
+			//	var removed = count - ViewControllers.Length;
+			//	for (var i = 0; i < removed; i++)
+			//	{
+			//		// lets just pop these suckers off, do not await, the true is there to make this fast
+			//		await ((NavigationPage)Element).PopAsyncInner(animated, true);
+			//	}
+			//	// because we skip the normal pop process we need to dispose ourselves
+			//	controller.Dispose();
+			//	_ignorePopCall = false;
+			//}, TaskScheduler.FromCurrentSynchronizationContext());
+
+			await ((NavigationPage)Element).PopAsyncInner(animated, true);
 		}
 
 		void UpdateBackgroundColor()
@@ -753,6 +768,15 @@ namespace Xamarin.Forms.Platform.iOS
 
 		class ParentingViewController : UIViewController
 		{
+			// TODO hartez 2017/06/27 15:00:24 Add a static counter for ParentingViewController	
+			static int s_count;
+
+			~ParentingViewController()
+			{
+				Interlocked.Decrement(ref s_count);
+				Log.Warning("41269 PVC", $"ParentingViewController instance count is: {s_count}");
+			}
+
 			readonly WeakReference<NavigationRenderer> _navigation;
 
 			Page _child;
@@ -763,6 +787,9 @@ namespace Xamarin.Forms.Platform.iOS
 				AutomaticallyAdjustsScrollViewInsets = false;
 
 				_navigation = new WeakReference<NavigationRenderer>(navigation);
+
+				Interlocked.Increment(ref s_count);
+				Log.Warning("41269 PVC", $"ParentingViewController instance count is: {s_count}");
 			}
 
 			public Page Child
@@ -850,6 +877,7 @@ namespace Xamarin.Forms.Platform.iOS
 			{
 				if (disposing)
 				{
+					Debug.WriteLine($">>>>> ParentingViewController Dispose 865: MESSAGE");
 					Child.SendDisappearing();
 
 					if (Child != null)
@@ -874,6 +902,7 @@ namespace Xamarin.Forms.Platform.iOS
 							ToolbarItems[i].Dispose();
 					}
 				}
+
 				base.Dispose(disposing);
 			}
 
@@ -927,35 +956,35 @@ namespace Xamarin.Forms.Platform.iOS
 
 			void UpdateToolbarItems()
 			{
-				if (NavigationItem.RightBarButtonItems != null)
-				{
-					for (var i = 0; i < NavigationItem.RightBarButtonItems.Length; i++)
-						NavigationItem.RightBarButtonItems[i].Dispose();
-				}
-				if (ToolbarItems != null)
-				{
-					for (var i = 0; i < ToolbarItems.Length; i++)
-						ToolbarItems[i].Dispose();
-				}
+				//if (NavigationItem.RightBarButtonItems != null)
+				//{
+				//	for (var i = 0; i < NavigationItem.RightBarButtonItems.Length; i++)
+				//		NavigationItem.RightBarButtonItems[i].Dispose();
+				//}
+				//if (ToolbarItems != null)
+				//{
+				//	for (var i = 0; i < ToolbarItems.Length; i++)
+				//		ToolbarItems[i].Dispose();
+				//}
 
-				List<UIBarButtonItem> primaries = null;
-				List<UIBarButtonItem> secondaries = null;
-				foreach (var item in _tracker.ToolbarItems)
-				{
-					if (item.Order == ToolbarItemOrder.Secondary)
-						(secondaries = secondaries ?? new List<UIBarButtonItem>()).Add(item.ToUIBarButtonItem(true));
-					else
-						(primaries = primaries ?? new List<UIBarButtonItem>()).Add(item.ToUIBarButtonItem());
-				}
+				//List<UIBarButtonItem> primaries = null;
+				//List<UIBarButtonItem> secondaries = null;
+				//foreach (var item in _tracker.ToolbarItems)
+				//{
+				//	if (item.Order == ToolbarItemOrder.Secondary)
+				//		(secondaries = secondaries ?? new List<UIBarButtonItem>()).Add(item.ToUIBarButtonItem(true));
+				//	else
+				//		(primaries = primaries ?? new List<UIBarButtonItem>()).Add(item.ToUIBarButtonItem());
+				//}
 
-				if (primaries != null)
-					primaries.Reverse();
-				NavigationItem.SetRightBarButtonItems(primaries == null ? new UIBarButtonItem[0] : primaries.ToArray(), false);
-				ToolbarItems = secondaries == null ? new UIBarButtonItem[0] : secondaries.ToArray();
+				//if (primaries != null)
+				//	primaries.Reverse();
+				//NavigationItem.SetRightBarButtonItems(primaries == null ? new UIBarButtonItem[0] : primaries.ToArray(), false);
+				//ToolbarItems = secondaries == null ? new UIBarButtonItem[0] : secondaries.ToArray();
 
-				NavigationRenderer n;
-				if (_navigation.TryGetTarget(out n))
-					n.UpdateToolBarVisible();
+				//NavigationRenderer n;
+				//if (_navigation.TryGetTarget(out n))
+				//	n.UpdateToolBarVisible();
 			}
 
 			public override UIInterfaceOrientationMask GetSupportedInterfaceOrientations()

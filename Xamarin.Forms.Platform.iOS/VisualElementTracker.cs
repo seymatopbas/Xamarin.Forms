@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.Threading;
 using CoreAnimation;
@@ -30,6 +31,8 @@ namespace Xamarin.Forms.Platform.MacOS
 		CALayer _layer;
 		int _updateCount;
 
+		static int s_count;
+
 		public VisualElementTracker(IVisualElementRenderer renderer)
 		{
 			if (renderer == null)
@@ -42,6 +45,15 @@ namespace Xamarin.Forms.Platform.MacOS
 			Renderer = renderer;
 			renderer.ElementChanged += OnRendererElementChanged;
 			SetElement(null, renderer.Element);
+
+			Interlocked.Increment(ref s_count);
+			Debug.WriteLine($">>>>> VisualElementTracker instance count is: {s_count}");
+		}
+
+		~VisualElementTracker()
+		{
+			Interlocked.Decrement(ref s_count);
+			Debug.WriteLine($">>>>> VisualElementTracker instance count is: {s_count}");
 		}
 
 		IVisualElementRenderer Renderer { get; set; }
@@ -55,6 +67,8 @@ namespace Xamarin.Forms.Platform.MacOS
 
 		protected virtual void Dispose(bool disposing)
 		{
+			Debug.WriteLine($">>>>> VisualElementTracker Dispose 57: VET is getting disposed");
+
 			if (_disposed)
 				return;
 
@@ -247,7 +261,9 @@ namespace Xamarin.Forms.Platform.MacOS
 			if (thread)
 				CADisplayLinkTicker.Default.Invoke(update);
 			else
+			{
 				update();
+			}
 
 			_lastBounds = view.Bounds;
 #if !__MOBILE__
