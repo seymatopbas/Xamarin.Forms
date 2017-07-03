@@ -214,6 +214,9 @@ namespace Xamarin.Forms.Platform.Android.FastRenderers
 
 		void UpdateColor()
 		{
+			if (_disposed)
+				return;
+
 			Color c = Element.TextColor;
 			if (c == _lastUpdateColor)
 				return;
@@ -227,6 +230,9 @@ namespace Xamarin.Forms.Platform.Android.FastRenderers
 
 		void UpdateFont()
 		{
+			if (_disposed)
+				return;
+
 #pragma warning disable 618 // We will need to update this when .Font goes away
 			Font f = Element.Font;
 #pragma warning restore 618
@@ -248,6 +254,9 @@ namespace Xamarin.Forms.Platform.Android.FastRenderers
 
 		void UpdateGravity()
 		{
+			if (_disposed)
+				return;
+
 			Label label = Element;
 
 			Gravity = label.HorizontalTextAlignment.ToHorizontalGravityFlags() | label.VerticalTextAlignment.ToVerticalGravityFlags();
@@ -257,12 +266,18 @@ namespace Xamarin.Forms.Platform.Android.FastRenderers
 
 		void UpdateLineBreakMode()
 		{
+			if (_disposed)
+				return;
+
 			this.SetLineBreakMode(Element.LineBreakMode);
 			_lastSizeRequest = null;
 		}
 
 		void UpdateText()
 		{
+			if (_disposed)
+				return;
+
 			if (Element.FormattedText != null)
 			{
 				FormattedString formattedText = Element.FormattedText ?? Element.Text;
